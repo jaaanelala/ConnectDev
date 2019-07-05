@@ -8,19 +8,31 @@ const keys = require ('../../config/keys');
 const passport = require('passport');
 
 
+//Load input validation
+const validateRegisterInput = require('../../validation/register');
+const validateloginInput = require('../../validation/login');
 
 //@route POST api/users/register
 //@description Register user
 //@access Public
 router.post('/register', (req, res) => {
+  const {errors, isValid} = 
+  validateRegisterInput(req.body)
+
+//Check validation
+if (!isValid){
+  return res.status(400).json(errors)
+}
+
+
   User.findOne({email: req.body.email })
     .then(user => {
       if (user) {
-        return res.status(400).json({
-          email: 'Email already exists'
-        })
+        errors.email = 'Email already exists'
+        return res.status(400).json(errors)
       } else {
-        const avatar = gravatar.url(req.body.email, {
+        const avatar = gravatar.url
+        (req.body.email, {
           s: '200',
           r: 'pg',
           d: 'mm',
@@ -54,6 +66,13 @@ router.post('/register', (req, res) => {
 //@description Login user
 //@access Public
 router.post('/login', (req, res) => {
+  const {errors, isValid} = 
+  validateloginInput(req.body)
+
+//Check validation
+if (!isValid){
+  return res.status(400).json(errors)
+}
   const email = req.body.email;
   const password = req.body.password;
 
@@ -61,17 +80,16 @@ router.post('/login', (req, res) => {
 User.findOne({email})
   .then(user => {
     if (!user){
-      return res.status(404).json({
-        email: 'User not found'
-      });
-    }
-
+      error.email = 'User not found';
+      return res.status(404).json(errors);
+  }
 
   //Check password
-  bcrypt.compare(password, user.password)
+    bcrypt.compare(password, user.password)
     .then(isMatch => {
       if (isMatch) {
-   //User matched
+   
+  //User matched
    const payload = {
      id: user.id,
      name: user.name,
@@ -79,7 +97,8 @@ User.findOne({email})
    };
 
    //Sign a token
-   jwt.sign(payload,
+   jwt.sign(
+     payload,
      keys.secretOrKey,
      {expiresIn: 3600},
      (err, token) => {
@@ -91,11 +110,12 @@ User.findOne({email})
       );
   }
   else {
-  return res.status(400).json({password: 'Password incorrect'});
-  }
- })
+  errors.password = 'Password incorrect';
+  return res.status(400).json(errors);
+   }
+  })
 })
-  .catch(err => console.log(err));
+ .catch(err => console.log(err));
 
 })
 
@@ -103,8 +123,9 @@ User.findOne({email})
 //@desc Return current user
 //@access Private
 router.get('/current', passport.authenticate('jwt', {session: false}), (req, res) => {
-res.json({msg: 'Success'});
-
+res.json(req.user);
 })
 
 module.exports = router;
+
+
